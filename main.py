@@ -4,11 +4,24 @@ import os
 import mlflow
 import mlflow.sklearn
 
+import sys
+import uuid
+
 from io import StringIO
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
+
+if (len(sys.args) != 2):
+    print("Unacceptable args len: it must be equal to one")
+    sys.exit()
+
+data_file = sys.argv[1]
+
+if (not os.path.exists(data_file)) or (not os.path.isfile(data_file)):
+    print("Unacceptable data file: %s" % (data_file))
+    sys.exit()
 
 os.environ['MLFLOW_TRACKING_URI'] = 'http://127.0.0.1:5000'
 os.environ['MLFLOW_S3_ENDPOINT_URL'] = 'http://127.0.0.1:9000'
@@ -21,7 +34,6 @@ boto3.setup_default_session(
     aws_secret_access_key='minio123',
     region_name='us-west-1'  # или другой регион, если это применимо
 )
-
 
 # Инициализация клиента
 s3 = boto3.client('s3',
@@ -60,7 +72,7 @@ with mlflow.start_run() as run:
     mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
     
     # Логирование модели
-    mlflow.sklearn.log_model(clf, "model", registered_model_name="MyFirstModel")
+    mlflow.sklearn.log_model(clf, "model", registered_model_name="Model-"+str(uuid.uuid4()))
 
 
 # accuracy_score(y_test, y_pred)

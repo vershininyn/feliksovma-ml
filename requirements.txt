@@ -1,3 +1,4 @@
+importlib-metadata==4.12.0
 cryptography==42.0.5
 boto3==1.34.51
 pymysql==1.1.0
