@@ -14,10 +14,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 
 def main() -> int:
-    mlflow.sklearn.autolog()
-
-    data_file = checkArguments()
     setupOsEnvironment()
+    data_file = checkArguments()
 
     X_train, X_test, y_train, y_test = getTrainData(data_file)
     X_train_vec, X_test_vec = getVectorization(X_train, X_test)
@@ -48,8 +46,6 @@ def setupOsEnvironment():
     os.environ['AWS_ACCESS_KEY_ID'] = 'minio'
     os.environ['AWS_SECRET_ACCESS_KEY'] = 'minio123'
     os.environ['PYENV_ROOT'] = 'C:\\Users\\versh\\.pyenv'
-
-    mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
     return 0
 
@@ -88,20 +84,28 @@ def doPredict(clf, X_test_vec, y_test):
 
     params = {"solver": "lbfgs", "max_iter": 150000000, "model_type": "LogisticRegression"}
 
+    mlflow.autolog()
+    mlflow.set_tracking_uri("file:\\\\\\" + os.getcwd() + "\\mlruns")
+
     # Логирование в MLflow
     with mlflow.start_run() as run:
         # Логирование параметров и метрик
 
-        print("++++ 01 ++++")
         # mlflow.log_param("model_type", "LogisticRegression")
         mlflow.log_params(params)
-
-        print("++++ 02 ++++")
         mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
     
-        print("++++ 03 ++++")
         # Логирование модели
-        mlflow.sklearn.log_model(clf, "model", registered_model_name="Model-"+str(uuid.uuid4()))
+        model_info = mlflow.sklearn.log_model(clf, "model", registered_model_name="Model-"+str(uuid.uuid4()))
+        # load the model
+
+        print("model-uri: " + model_info.model_uri)
+
+        # model = mlflow.pyfunc.load_model(model_uri=model_info.model_uri)
+        # model.serve(host= "http://127.0.0.1:5000", port=5000)
+
+# mlflow deployments create --name rnd_deploy --target http://127.0.0.1:5000/ --model-uri .\mlruns
+# mlflow run . --env-manager=local --experiment-name=kinopoisk
 
 
 if __name__ == '__main__':
