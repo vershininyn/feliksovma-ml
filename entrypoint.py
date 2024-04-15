@@ -6,6 +6,8 @@ import mlflow.sklearn
 
 import sys
 import uuid
+import http.client
+import json
 
 from io import StringIO
 from sklearn.feature_extraction.text import CountVectorizer
@@ -49,12 +51,15 @@ def setupOsEnvironment():
 
     return 0
 
+def getBotoS3Client():
+    return boto3.client('s3',endpoint_url='http://127.0.0.1:9000', aws_access_key_id='minio', aws_secret_access_key='minio123')
+
 def getTrainData(data_file = 'kinopoisk_train.csv'):
     # Настройка клиента boto3
     boto3.setup_default_session(aws_access_key_id='minio', aws_secret_access_key='minio123', region_name='us-west-1')
     
     # Инициализация клиента
-    s3 = boto3.client('s3',endpoint_url='http://127.0.0.1:9000', aws_access_key_id='minio', aws_secret_access_key='minio123')
+    s3 = getBotoS3Client()
     
     # Считывание данных
     obj = s3.get_object(Bucket='datasets', Key=data_file)
@@ -78,6 +83,15 @@ def modelTrain(maxIter = 150000000, modelSolver = "lbfgs", xTrainVec = [], yTrai
 
     return clf
 
+def list_files(directory):
+    files_list = []
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            files_list.append(file_path)
+    return files_list
+
+# Пример использования
 def doPredict(clf, X_test_vec, y_test):
     # Предсказание
     y_pred = clf.predict(X_test_vec)
@@ -87,25 +101,63 @@ def doPredict(clf, X_test_vec, y_test):
     mlflow.autolog()
     mlflow.set_tracking_uri("file:\\\\\\" + os.getcwd() + "\\mlruns")
 
+    s3 = getBotoS3Client()
+
     # Логирование в MLflow
     with mlflow.start_run() as run:
-        # Логирование параметров и метрик
-
-        # mlflow.log_param("model_type", "LogisticRegression")
         mlflow.log_params(params)
         mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
     
-        # Логирование модели
-        model_info = mlflow.sklearn.log_model(clf, "model", registered_model_name="Model-"+str(uuid.uuid4()))
-        # load the model
+        model_name = "Model-" + str(uuid.uuid4())
+        model_path = os.path.join(os.getcwd(), "mlruns", "models", model_name)
+        
+        mlflow.sklearn.save_model(clf, model_path)
 
-        print("model-uri: " + model_info.model_uri)
+        run_id = run.info.run_id
+        experiment_id = run.info.experiment_id
 
-        # model = mlflow.pyfunc.load_model(model_uri=model_info.model_uri)
-        # model.serve(host= "http://127.0.0.1:5000", port=5000)
+        print("experiment_id: " + experiment_id)
+        print("run_id: " + run_id)
+        print("model_name: " + model_name)
 
-# mlflow deployments create --name rnd_deploy --target http://127.0.0.1:5000/ --model-uri .\mlruns
-# mlflow run . --env-manager=local --experiment-name=kinopoisk
+        s3_model_key = str(0) + "/" + str(experiment_id) + "/" + model_name
+
+        for file in list_files(model_path):
+            s3.upload_file(file, "mlflow", s3_model_key + "/" + os.path.basename(file))
+
+        mlflow.sklearn.log_model(clf, artifact_path="local_and_mlflow", registered_model_name=model_name)
+        mlflow.log_artifacts(model_path, artifact_path=None)
+
+        # Укажите путь к вашей локальной модели и бакету S3, в который вы хотите ее загрузить
+        # local_model_path = os.path.join(os.getcwd(), "mlruns", "models", model_name, "meta.yaml")
+        # s3 = getBotoS3Client()
+
+        # print("model_path: " + model_path)
+
+        # for file in list_files(model_path):
+        #     print("++++ current_file: " + file)
+        #     s3.upload_file(file, "mlflow", str(experiment_id) + "/" + model_name + "/" + os.path.basename(file))
+
+        # print("++++++++++++++")
+        # httpClient = http.client.HTTPConnection("127.0.0.1", port=5000)
+        # headers = {"Content-type": "application/json"}
+
+        # data = {"experiment_id": str(experiment_id),
+        #         "artifact_location": "s3://mlflow/" + str(experiment_id),
+        #         "parameters": {
+        #             "param1": "value1",
+        #             "param2": "value2"
+        #             },
+        #         "tags": {
+        #             "tag1": "value1",
+        #             "tag2": "value2"
+        #             }
+        #         }
+        
+        # response = httpClient.getresponse()
+
+        # print("STATUS = " + str(response.status), "REASON = " + str(response.reason))
+        # print("++++++++++++++")
 
 
 if __name__ == '__main__':
