@@ -1,4 +1,7 @@
-name: main
+name: movie_rating_prediction
+
+py_env: python_env.yaml
+python_env: python_env.yaml
 
 entry_points:
   main:

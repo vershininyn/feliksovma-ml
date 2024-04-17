@@ -1,16 +1,21 @@
 import boto3
 import pandas as pd
 import os
+
 import mlflow
 import mlflow.sklearn
-
 import sys
+
 import uuid
 import http.client
 import json
 
+from mlflow import MlflowClient
+
+from minio import Minio
 from io import StringIO
 from sklearn.feature_extraction.text import CountVectorizer
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
@@ -83,14 +88,6 @@ def modelTrain(maxIter = 150000000, modelSolver = "lbfgs", xTrainVec = [], yTrai
 
     return clf
 
-def list_files(directory):
-    files_list = []
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            file_path = os.path.join(root, file)
-            files_list.append(file_path)
-    return files_list
-
 # Пример использования
 def doPredict(clf, X_test_vec, y_test):
     # Предсказание
@@ -99,40 +96,110 @@ def doPredict(clf, X_test_vec, y_test):
     params = {"solver": "lbfgs", "max_iter": 150000000, "model_type": "LogisticRegression"}
 
     mlflow.autolog()
-    mlflow.set_tracking_uri("file:\\\\\\" + os.getcwd() + "\\mlruns")
+    mlflow.set_tracking_uri("file:\\\\\\" + os.getcwd() + "\\mlruns") 
 
-    s3 = getBotoS3Client()
+    # s3 = getBotoS3Client()
 
-    # Логирование в MLflow
     with mlflow.start_run() as run:
-        mlflow.log_params(params)
+        # Логирование параметров и метрик
+        mlflow.log_param("model_type", "LogisticRegression")
         mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
-    
-        model_name = "Model-" + str(uuid.uuid4())
-        model_path = os.path.join(os.getcwd(), "mlruns", "models", model_name)
-        
-        mlflow.sklearn.save_model(clf, model_path)
+
+        model_name = "model-" + str(uuid.uuid4())
+        # Логирование модели
+        mlflow.sklearn.log_model(clf, artifact_path="sklearn-model", registered_model_name=model_name)
 
         run_id = run.info.run_id
         experiment_id = run.info.experiment_id
 
-        print("experiment_id: " + experiment_id)
-        print("run_id: " + run_id)
-        print("model_name: " + model_name)
+        root_bucket_directory = str(0) + "/" + str(run_id) + "/"
 
-        s3_model_key = str(0) + "/" + str(experiment_id) + "/" + model_name
+        # Подключение к MinIO серверу
+        minio_client = Minio("127.0.0.1:9000", access_key="minio", secret_key="minio123", secure=False)
 
-        for file in list_files(model_path):
-            s3.upload_file(file, "mlflow", s3_model_key + "/" + os.path.basename(file))
+        uploadModelToMinIOServer(minio_client, run_id, root_bucket_directory, ["artifacts", "model" ,"metadata"])
+        uploadModelToMinIOServer(minio_client, run_id, root_bucket_directory, ["artifacts", "model"])
+        uploadModelToMinIOServer(minio_client, run_id, root_bucket_directory, ["metrics"])
+        uploadModelToMinIOServer(minio_client, run_id, root_bucket_directory, ["params"])
+        uploadModelToMinIOServer(minio_client, run_id, root_bucket_directory, ["tags"])
 
-        mlflow.sklearn.log_model(clf, artifact_path="local_and_mlflow", registered_model_name=model_name)
-        mlflow.log_artifacts(model_path, artifact_path=None)
+        mlflow_client = MlflowClient("http://127.0.0.1:5000")
+
+        # Create source model version
+        src_name = "RandomForestRegression-staging"
+        client.create_registered_model(src_name)
+        src_uri = f"runs:/{run.info.run_id}/sklearn-model"
+        mv_src = client.create_model_version(src_name, src_uri, run.info.run_id)
+        print_model_version_info(mv_src)
+        print("--")
+
+        # Copy the source model version into a new registered model
+        dst_name = "RandomForestRegression-production"
+        src_model_uri = f"models:/{mv_src.name}/{mv_src.version}"
+        mv_copy = client.copy_model_version(src_model_uri, dst_name)
+        print_model_version_info(mv_copy)
+
+
+def uploadModelToMinIOServer(minio_client, run_id, root_bucket_directory, sub_folder_string_array):
+    local_model_path = os.path.join(*sub_folder_string_array)
+    metadata_dir = constructPathToModelFile(run_id, local_model_path)
+
+    metadata_file_minio_path = root_bucket_directory + "/".join(sub_folder_string_array + [''])
+    
+    for file in list_files(metadata_dir):
+        minio_client.fput_object("mlflow", metadata_file_minio_path + os.path.basename(file), file)
+
+def constructPathToModelFile(run_id, model_directory):
+    return os.path.join(os.getcwd(), "mlruns", str(0), run_id, model_directory)
+
+def list_files(directory):
+    files_list = []
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            files_list.append(file_path)
+    return files_list
+
+    # Логирование в MLflow
+    # with mlflow.start_run() as run:
+    #     mlflow.log_params(params)
+    #     mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
+    
+    #     model_name = "Model-" + str(uuid.uuid4())
+    #     model_path = os.path.join(os.getcwd(), "mlruns", "models", model_name)
+        
+    #     mlflow.sklearn.save_model(clf, model_path)
+
+    #     run_id = run.info.run_id
+    #     experiment_id = run.info.experiment_id
+
+    #     print("experiment_id: " + experiment_id)
+    #     print("run_id: " + run_id)
+    #     print("model_name: " + model_name)
+
+        # s3_model_key = str(0) + "/" + str(experiment_id) + "/" + "artifacts" + "/" + model_name
+
+        # for file in list_files(model_path):
+        #     s3.upload_file(file, "mlflow", s3_model_key + "/" + os.path.basename(file))
+
+        # mlflow.sklearn.log_model(clf, artifact_path="local_and_mlflow", registered_model_name=model_name)
+        # mlflow.log_artifacts(model_path, artifact_path="data")
+    
+        # Логирование модели в локальную директорию и в MLflow
+        # mlflow.sklearn.log_model(clf, "model", artifact_path="local_and_mlflow", registered_model_name=model_name)
+
+        # Логирование модели в S3 и в MLflow
+        # mlflow.sklearn.log_model(clf, artifact_path="s3://mlflow/" + s3_model_key, registered_model_name=model_name)
+
+        # mlflow.sklearn.log_model(clf, "model", registered_model_name=model_name)
+
+        # mlflow.sklearn.log_model(clf, "model", artifact_path="local_and_mlflow")
 
         # Укажите путь к вашей локальной модели и бакету S3, в который вы хотите ее загрузить
         # local_model_path = os.path.join(os.getcwd(), "mlruns", "models", model_name, "meta.yaml")
         # s3 = getBotoS3Client()
 
-        # print("model_path: " + model_path)
+        # print("model_path: " + model_path) 
 
         # for file in list_files(model_path):
         #     print("++++ current_file: " + file)
