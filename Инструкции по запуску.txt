@@ -11,7 +11,7 @@
     шаг 1. Выполнить следующую команду: 
         Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"; &"./install-pyenv-win.ps1"
 
-    шаг 2. Выполнить следующие команды для опредедения переменных окружения:
+    шаг 2. Выполнить следующие команды для определения переменных окружения:
 
         [System.Environment]::SetEnvironmentVariable('PYENV',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
         [System.Environment]::SetEnvironmentVariable('PYENV_ROOT',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
@@ -29,7 +29,21 @@
 
         pip install -r requirements.txt
 
-++++ 2.Запуск эксперимент "kinopoisk"
+++++ 2. Запустить докер образы
+
+    шаг 0. Установить докер.
+
+        https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe?_gl=1*18fc6sc*_ga*MTkwNTQzMDE4MC4xNzEwMTQ4NzM4*_ga_XJWPQMJYHQ*MTcxMzM4OTgzOC4xNS4xLjE3MTMzODk4NDAuNTguMC4w
+
+    шаг 1. Запустить engine
+    
+    шаг 2. Запустить докер контейнеры проекта
+
+        шаг 0. перейти в папку "feliksovma-ml\mlflow-docker-compose", содержащую проект, используя облочку выше
+
+        шаг 1. выполнить команду "docker compose up"
+
+++++ 3. Запуск эксперимент "kinopoisk"
 
     шаг 0. открыть оболочку cmd с правами администратора
 
