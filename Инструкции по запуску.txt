@@ -1,1 +1,22 @@
-Шаг . Сделать пуш в удаленный репозиторий.
+Установить pyenv
+
+Следуя инструкции: https://pyenv-win.github.io/pyenv-win/docs/installation.html#powershell
+
+шаг 0. Открыть PowerShell c правами администратора
+
+шаг 1. Выполнить следующую команду: 
+Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"; &"./install-pyenv-win.ps1"
+
+шаг 2. Выполнить следующие команды для опредедения переменных окружения:
+
+[System.Environment]::SetEnvironmentVariable('PYENV',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
+[System.Environment]::SetEnvironmentVariable('PYENV_ROOT',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
+[System.Environment]::SetEnvironmentVariable('PYENV_HOME',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
+
+затем
+
+[System.Environment]::SetEnvironmentVariable('path', $env:USERPROFILE + "\.pyenv\pyenv-win\bin;" + $env:USERPROFILE + "\.pyenv\pyenv-win\shims;" + [System.Environment]::GetEnvironmentVariable('path', "User"),"User")
+
+шаг 3. Проверить установку pyenv:
+
+pyenv --version. Должно быть "pyenv 3.1.1" или что-то подобное
