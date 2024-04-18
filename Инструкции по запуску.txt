@@ -1,8 +1,4 @@
-++++ 0. Установка питона
-
-    Установить питон следуя следующей ссылке: https://www.python.org/ftp/python/3.10.5/python-3.10.5-amd64.exe
-
-++++ 1. Установить pyenv
+++++ 0. Установить pyenv, если его нет
 
     Следуя инструкции: https://pyenv-win.github.io/pyenv-win/docs/installation.html#powershell
 
@@ -23,15 +19,27 @@
 
     шаг 3. Проверить установку pyenv:
 
-        pyenv --version. Должно быть "pyenv 3.1.1" или что-то подобное
+        pyenv --version. 
+        
+        Должно быть "pyenv 3.1.1" или что-то подобное
 
-    шаг 4. Установить требуемые зависимости из PowerShell
+    шаг 4. Установить питон версии 3.10.5, используя pyenv и PowerShell, если его нет
+
+        pyenv install 3.10.5
+
+    шаг 5. Проверить установку питона
+
+        python --version 
+
+        Должно быть что-то вроде "python 3.10.5"    
+
+    шаг 6. Установить требуемые зависимости из PowerShell в директории "feliksovma-ml\"
 
         pip install -r requirements.txt
 
-++++ 2. Запустить докер образы
+++++ 1. Запустить докер образы
 
-    шаг 0. Установить докер.
+    шаг 0. Установить докер, если его нет
 
         https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe?_gl=1*18fc6sc*_ga*MTkwNTQzMDE4MC4xNzEwMTQ4NzM4*_ga_XJWPQMJYHQ*MTcxMzM4OTgzOC4xNS4xLjE3MTMzODk4NDAuNTguMC4w
 
@@ -43,11 +51,9 @@
 
         шаг 1. выполнить команду "docker compose up"
 
-++++ 3. Запуск эксперимент "kinopoisk"
+++++ 2. Запуск эксперимент "kinopoisk"
 
-    шаг 0. открыть оболочку cmd с правами администратора
+    шаг 0. используя PowerShell с административным доступом перейти в папку feliksovma-ml, содержащую проект
 
-    шаг 1. перейти в папку feliksovma-ml, содержащую проект
-
-    шаг 2. выполнить команду "mlflow run . --env-manager=virtualenv"
+    шаг 1. выполнить команду "mlflow run . --env-manager=virtualenv"
 
