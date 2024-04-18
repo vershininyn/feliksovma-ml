@@ -53,7 +53,7 @@
 
 ++++ 2. Запуск эксперимент "kinopoisk"
 
-    шаг 0. добавление датасета kinopoisk_train.csv в Object Store MinIO, используя интсрукцию "Webinar3.ipynb\Webinar3.ipynb"
+    шаг 0. добавление датасета kinopoisk_train.csv в Object Store MinIO, используя инструкцию "Webinar3.ipynb\Webinar3.ipynb"
     
     шаг 1. используя PowerShell с административным доступом перейти в папку feliksovma-ml, содержащую проект
 
