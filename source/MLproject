@@ -1,0 +1,11 @@
+name: movie_rating_prediction
+
+docker_env:
+  image: kinopoisk:latest
+
+entry_points:
+  main:
+    image: $${docker_env.image}
+    environment:
+      MLFLOW_EXPERIMENT_NAME: "kinopoisk"
+    command: "python entrypoint.py kinopoisk_train.csv"

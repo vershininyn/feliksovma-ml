@@ -37,7 +37,7 @@
 
         pip install -r requirements.txt
 
-++++ 1. Запустить докер образы
+++++ 1. Запустить, содержащую нужные контейнеры инфраструктуру
 
     шаг 0. Установить докер, если его нет
 
@@ -51,11 +51,28 @@
 
         шаг 1. выполнить команду "docker compose up"
 
-++++ 2. Запуск эксперимент "kinopoisk"
+++++ 2. Собрать docker image: kinopoisk
 
-    шаг 0. добавление датасета kinopoisk_train.csv в Object Store MinIO, используя инструкцию "Webinar3.ipynb\Webinar3.ipynb"
+    шаг 0. Перейти в директорию "feliksovma-ml\mlflow-docker-compose\mlflow-kinopoisk-img", используя PowerShell в режиме админинстратора
+
+    шаг 1. Собрать image "kinopoisk" выполнив команду "docker build -f .\Dockerfile -t kinopoisk ."? если его еще нет. Это можно
+        проверить используя команду "docker image ls" и, если это необходимо, удалить существующий командой "docker image rmi {IMAGE_ID}"
+
+++++ 3. Запуск эксперимент "kinopoisk"
+
+    шаг 0. Добавить датасета kinopoisk_train.csv в Object Store MinIO, используя инструкцию "Webinar3.ipynb\Webinar3.ipynb"
     
-    шаг 1. используя PowerShell с административным доступом перейти в папку feliksovma-ml, содержащую проект
+    шаг 1. Используя PowerShell с административным доступом перейти в папку "feliksovma-ml\source", содержащую проект
 
-    шаг 2. выполнить команду "mlflow run . --env-manager=virtualenv"
+    шаг 2. Выполнить команду "mlflow run . --experiment-name=kinopoisk --docker-args="network=mlflow-docker-compose_mlflow_net" --build-image"
+
+    шаг 3. Запустить эксперимент:
+
+        шаг 0. Отредактировать команду. Нужно указать свои АБСОЛЮТНЫЕ ПУТИ
+        
+        "docker run --rm --network mlflow-docker-compose_mlflow_net -v /d/2024/desktop/HomeWork/2055671/feliksovma-ml/source/mlruns:/mlflow/tmp/mlruns -v /d/2024/desktop/HomeWork/2055671/feliksovma-ml/source/mlruns/570021522064556026/0a741890416c49b4b40ffdff6b0578e7/artifacts:/d/2024/desktop/HomeWork/2055671/feliksovma-ml/source/mlruns/570021522064556026/0a741890416c49b4b40ffdff6b0578e7/artifacts -e MLFLOW_RUN_ID=0a741890416c49b4b40ffdff6b0578e7 -e MLFLOW_TRACKING_URI=file:///d/2024/desktop/HomeWork/2055671/feliksovma-ml/source/mlruns -e MLFLOW_EXPERIMENT_ID=570021522064556026 movie_rating_prediction:6c163dd python entrypoint.py kinopoisk_train.csv"
+
+        шаг 1 (КОМАНДА ДОЛЖНА БЫТЬ ЗАПУЩЕНА КАК ОДНА СТРОКА). Запустить эксперимент, используя отредактированную команду выше
+        
+        
 
