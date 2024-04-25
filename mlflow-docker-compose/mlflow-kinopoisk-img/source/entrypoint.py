@@ -7,6 +7,7 @@ import mlflow.sklearn
 import sys
 
 import uuid
+import numpy as np
 
 from mlflow import MlflowClient
 from minio import Minio
@@ -15,8 +16,10 @@ from io import StringIO
 from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score
+from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
+
 
 def main() -> int:
     setupOsEnvironment()
@@ -25,7 +28,7 @@ def main() -> int:
     X_train, X_test, y_train, y_test = getTrainData(data_file)
     X_train_vec, X_test_vec = getVectorization(X_train, X_test)
 
-    model = modelTrain(150000000, "lbfgs", X_train_vec, y_train)
+    model = modelTrain(X_train_vec, y_train)
 
     doPredict(model, X_test_vec, y_test)
 
@@ -79,12 +82,29 @@ def getVectorization(X_train, X_test):
 
     return (X_train_vec, X_test_vec)
 
-def modelTrain(maxIter = 150000000, modelSolver = "lbfgs", xTrainVec = [], yTrain = []): 
-    # Обучение модели
-    clf = LogisticRegression(max_iter=maxIter, solver=modelSolver)
-    clf.fit(xTrainVec, yTrain)
 
-    return clf
+def modelTrain(xTrainVec = [], yTrain = []): 
+
+    def objective(params):
+        clf = LogisticRegression(**params, n_jobs=-1, max_iter=150_000_000)
+        score = (-1)*np.mean(cross_val_score(clf, xTrainVec, yTrain, cv=5, scoring='accuracy'))
+
+        return {'loss': score, 'status': STATUS_OK}
+
+    space = {
+        'tol': hp.choice('tol', list([ 1.0 / pow(10, x) for x in range(6, 1, -1)])), 
+        'C': hp.choice('C', list([ x / 2.0 for x in range(1, 4, 1)]))
+    }
+
+    trials = Trials()
+    best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=2, trials=trials)
+
+    best_params = {'tol': best['tol'], 'C': best['C']}
+    
+    best_clf = LogisticRegression(**best_params, n_jobs=-1, max_iter=150_000_000)
+    best_clf.fit(xTrainVec, yTrain)
+
+    return best_clf
 
 def doPredict(clf, X_test_vec, y_test):
     y_pred = clf.predict(X_test_vec)
